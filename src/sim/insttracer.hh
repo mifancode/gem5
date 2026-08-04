@@ -286,6 +286,9 @@ class InstRecord
 
     virtual void dump() = 0;
 
+    virtual void recordReg(int idx, const void *val,
+                           size_t size, bool isDest) {}
+
   public:
     Tick getWhen() const { return when; }
     ThreadContext *getThread() const { return thread; }

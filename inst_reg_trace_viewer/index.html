@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InstRegTrace Viewer</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font:13px/1.35 monospace; background:#1a1a2e; color:#e0e0e0; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+#ctl { background:#16213e; padding:6px 10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; border-bottom:1px solid #0f3460; flex-shrink:0; z-index:2; }
+#ctl label.btn { background:#0f3460; color:#e0; border:1px solid #1a1a4e; padding:4px 8px; border-radius:4px; cursor:pointer; font:inherit; display:inline-block; }
+#ctl label.btn:hover { background:#1a5276; }
+#ctl button, #ctl select, #ctl input[type="text"], #ctl input[type="range"] { background:#0f3460; color:#e0; border:1px solid #1a1a4e; padding:4px 8px; border-radius:4px; cursor:pointer; font:inherit; }
+#ctl button:hover { background:#1a5276; }
+#ctl .sep { width:1px; height:16px; background:#0f3460; margin:0 2px; }
+#ctl label.lbl { color:#888; font-size:11px; }
+#ctl #stats { margin-left:auto; color:#4a4; font-size:11px; white-space:nowrap; }
+#drop-zone { position:absolute; top:0;left:0;right:0;bottom:0; background:rgba(64,160,255,0.08); border:3px dashed #40a0ff; display:flex; align-items:center; justify-content:center; font-size:18px; color:#40a0ff; z-index:99; pointer-events:none; opacity:0; transition:opacity 0.15s; }
+#drop-zone.show { opacity:1; }
+
+#main { display:flex; flex:1; overflow:hidden; min-height:0; }
+#inst-panel { flex:2; overflow:hidden; display:flex; flex-direction:column; border-right:1px solid #0f3460; min-width:0; }
+#right-panel { flex:1; overflow:hidden; display:flex; flex-direction:column; background:#16213e; min-width:280px; max-width:420px; }
+
+#inst-hdr { background:#0f3460; padding:5px 10px; display:grid; grid-template-columns:90px 80px minmax(0,3fr) minmax(0,1fr); font-weight:bold; font-size:11px; color:#aaa; flex-shrink:0; gap:4px; }
+#inst-list { flex:1; overflow-y:auto; }
+#inst-list::-webkit-scrollbar { width:6px; }
+#inst-list::-webkit-scrollbar-thumb { background:#0f3460; border-radius:3px; }
+
+.inst-row { display:grid; grid-template-columns:90px 80px minmax(0,3fr) minmax(0,1fr); padding:2px 10px; border-bottom:1px solid #0f3460; cursor:pointer; font-size:12px; line-height:1.5; gap:4px; user-select:none; }
+.inst-row:hover { background:#1a1a4e; }
+.inst-row.sel { background:#0f3460; }
+.tick { color:#f0c040; white-space:nowrap; }
+.pc { color:#40c0f0; white-space:nowrap; }
+.inst-name { color:#e0e0e0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.regs { font-size:10px; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
+.rg { padding:0 2px; border-radius:2px; }
+.rg.src { color:#40a0ff; }
+.rg.dst { color:#ff6040; }
+.rg.mem { color:#40c080; }
+.fault-tag { color:#f04040; font-weight:bold; }
+.prod { color:#f0c040; font-size:9px; cursor:pointer; text-decoration:underline; }
+.prod:hover { color:#fff; }
+
+#right-tabs { display:flex; background:#0f3460; flex-shrink:0; }
+#right-tabs button { flex:1; padding:7px; background:transparent; color:#888; border:none; border-bottom:2px solid transparent; cursor:pointer; font:inherit; transition:color 0.15s; }
+#right-tabs button.active { color:#e0e0e0; border-bottom-color:#40a0ff; }
+#right-content { flex:1; overflow-y:auto; padding:8px; }
+
+#dep-table { width:100%; font-size:11px; }
+#dep-table td { padding:3px 6px; vertical-align:top; border-bottom:1px solid #1a1a4e; }
+#dep-table .dep-src { color:#40a0ff; font-weight:bold; }
+#dep-table .dep-dst { color:#ff6040; font-weight:bold; }
+#dep-table .dep-val { color:#e0e0e0; }
+#dep-table .dep-prod { color:#f0c040; font-size:10px; cursor:pointer; text-decoration:underline; }
+#dep-table .dep-prod:hover { color:#fff; }
+#dep-table .dep-here { color:#666; font-size:10px; }
+
+#snap-table { width:100%; border-collapse:collapse; font-size:11px; }
+#snap-table th { background:#0f3460; padding:3px 6px; text-align:left; color:#888; position:sticky; top:0; z-index:1; }
+#snap-table td { padding:2px 6px; border-bottom:1px solid #1a1a4e; }
+.snap-src { background:rgba(64,160,255,0.10); }
+.snap-dst { background:rgba(255,96,64,0.10); }
+
+#search-box { width:140px; background:#0f3460; color:#e0; border:1px solid #1a1a4e; padding:4px 8px; border-radius:4px; font:inherit; }
+#search-box::placeholder { color:#555; }
+</style>
+</head>
+<body>
+
+<div id="ctl">
+  <label class="btn" for="file-inp">&#x1F4C2; Open File</label>
+  <input type="file" id="file-inp" accept=".jsonl,.json,.txt" style="display:none;">
+  <span class="sep"></span>
+  <label class="lbl">Thread:</label><select id="thread-sel"><option value="all">All</option></select>
+  <input id="search-box" placeholder="filter...">
+  <span class="sep"></span>
+  <label class="lbl">Tick:</label><input type="range" id="tick-slider" min="0" max="100" value="0" style="width:160px;">
+  <span id="tick-label" style="color:#f0c040;font-size:11px;">&mdash;</span>
+  <button id="btn-prev" title="Prev">&#9664;</button>
+  <button id="btn-next" title="Next">&#9654;</button>
+  <span id="stats">Drop .jsonl here or click Open</span>
+</div>
+
+<div id="drop-zone">&#x1F4E5; Drop .jsonl file here</div>
+
+<div id="main">
+  <div id="inst-panel">
+    <div id="inst-hdr"><span>Tick</span><span>PC</span><span>Instruction</span><span>Registers &amp; Dependencies</span></div>
+    <div id="inst-list"></div>
+  </div>
+  <div id="right-panel">
+    <div id="right-tabs">
+      <button class="active" data-view="dep">Dependencies</button>
+      <button data-view="snapshot">Snapshot</button>
+    </div>
+    <div id="right-content"><div style="color:#666;padding:20px;text-align:center;">Open a .jsonl trace file</div></div>
+  </div>
+</div>
+
+<script>
+// =================== Data Store ===================
+const DS = {
+  all: [],
+  regProducer: new Map(),  // regName -> { idx, tick, pc, inst }
+  maxTick: 0,
+  threads: new Set(),
+
+  add(r) {
+    const idx = this.all.length;
+    this.all.push(r);
+    if (r.tick > this.maxTick) this.maxTick = r.tick;
+    if (r.thread !== undefined) this.threads.add(r.thread);
+
+    // Update producer map for each destination register
+    if (r.dst) for (let d of r.dst) {
+      this.regProducer.set(d.name, {
+        idx: idx,
+        tick: r.tick,
+        pc: r.pc || '',
+        inst: r.inst || '',
+        val: d.val
+      });
+    }
+  },
+
+  getProducer(regName) {
+    return this.regProducer.get(regName) || null;
+  },
+
+  getAllVals() {
+    const m = new Map();
+    for (let [name, p] of this.regProducer) {
+      m.set(name, p.val);
+    }
+    return m;
+  }
+};
+
+// =================== App State ===================
+let state = {
+  thread: 'all',
+  filter: '',
+  selAllIdx: -1,
+  view: 'dep'
+};
+
+function filtered() {
+  let a = DS.all;
+  if (state.thread !== 'all') a = a.filter(r => r.thread == state.thread);
+  if (state.filter) {
+    const f = state.filter.toLowerCase();
+    a = a.filter(r => (
+      (r.pc||'').toLowerCase().includes(f) ||
+      (r.inst||'').toLowerCase().includes(f) ||
+      (r.src||[]).some(s => s.name.toLowerCase().includes(f)) ||
+      (r.dst||[]).some(d => d.name.toLowerCase().includes(f))
+    ));
+  }
+  return a;
+}
+
+function selectedRec() {
+  if (state.selAllIdx < 0 || state.selAllIdx >= DS.all.length) return null;
+  const r = DS.all[state.selAllIdx];
+  const f = filtered();
+  return f.includes(r) ? r : null;
+}
+
+function jumpToIdx(allIdx) {
+  state.selAllIdx = allIdx;
+  const r = DS.all[allIdx];
+  document.getElementById('tick-slider').value = allIdx;
+  document.getElementById('tick-label').textContent = r.tick;
+  updateAll();
+  // Scroll the selected row into view
+  setTimeout(() => {
+    const f = filtered();
+    const fi = f.indexOf(r);
+    if (fi >= 0) {
+      const row = document.querySelector(`.inst-row[data-i="${fi}"]`);
+      if (row) row.scrollIntoView({ block: 'center' });
+    }
+  }, 50);
+}
+
+// =================== File Load ===================
+async function loadFile(file) {
+  const t0 = performance.now();
+  const text = await file.text();
+  const lines = text.trim().split('\n');
+  document.getElementById('stats').textContent = `loading 0/${lines.length}`;
+
+  DS.all = []; DS.regProducer = new Map(); DS.maxTick=0; DS.threads=new Set();
+  state.selAllIdx = -1;
+
+  const CHUNK = 50000;
+  for (let i=0; i<lines.length; i+=CHUNK) {
+    const end = Math.min(i+CHUNK, lines.length);
+    for (let j=i; j<end; j++) {
+      try { DS.add(JSON.parse(lines[j])); } catch(e) {}
+    }
+    document.getElementById('stats').textContent = `loading ${end}/${lines.length}`;
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  const elapsed = ((performance.now()-t0)/1000).toFixed(1);
+  document.getElementById('stats').textContent = `${DS.all.length} records (${elapsed}s)`;
+
+  const sel = document.getElementById('thread-sel');
+  sel.innerHTML = '<option value="all">All</option>';
+  [...DS.threads].sort().forEach(t => { sel.innerHTML += `<option value="${t}">T${t}</option>`; });
+
+  const sl = document.getElementById('tick-slider');
+  sl.max = DS.all.length - 1; sl.value = 0;
+  if (DS.all.length>0) { state.selAllIdx = 0; document.getElementById('tick-label').textContent = DS.all[0].tick; }
+
+  updateAll();
+}
+
+// =================== Rendering ===================
+let cachedFiltered = [];
+
+function updateAll() {
+  cachedFiltered = filtered();
+  renderList();
+  updateRight();
+}
+
+function renderList() {
+  const el = document.getElementById('inst-list');
+  const N = cachedFiltered.length;
+  el.innerHTML = '';
+  if (N === 0) { el.innerHTML = '<div style="color:#666;padding:20px;text-align:center;">No matching instructions</div>'; return; }
+
+  const ROW_H = 24;
+  const viewH = el.clientHeight || 600;
+  const totalH = N * ROW_H;
+  const start = Math.max(0, Math.floor(el.scrollTop / ROW_H) - 10);
+  const end = Math.min(N, Math.ceil((el.scrollTop + viewH) / ROW_H) + 10);
+
+  const padTop = document.createElement('div'); padTop.style.height = (start * ROW_H) + 'px'; el.appendChild(padTop);
+
+  const cur = selectedRec();
+
+  const frag = document.createDocumentFragment();
+  for (let i = start; i < end; i++) {
+    const r = cachedFiltered[i];
+    const div = document.createElement('div');
+    div.className = 'inst-row' + (r === cur ? ' sel' : '');
+    div.setAttribute('data-i', i);
+
+    let regs = '';
+    if (r.fault) regs += '<span class="fault-tag">FAULT </span>';
+    if (r.src) for (let s of r.src) {
+      const p = DS.getProducer(s.name);
+      if (p && p.idx !== DS.all.indexOf(r)) {
+        regs += `<span class="rg src">${s.name}=${s.val}</span><span class="prod" onclick="event.stopPropagation();jumpToIdx(${p.idx})" title="produced by: ${esc2(p.inst)} @ ${p.tick}">&larr;t${p.tick}</span> `;
+      } else {
+        regs += `<span class="rg src">${s.name}=${s.val}</span> `;
+      }
+    }
+    if (r.dst) for (let d of r.dst) {
+      regs += `<span class="rg dst">${d.name}=${d.val}</span> `;
+    }
+    if (r.mem && r.mem.addr) regs += `<span class="rg mem">M[${r.mem.addr}]+${r.mem.size}</span>`;
+
+    div.innerHTML = `<span class="tick">${r.tick}</span><span class="pc">${r.pc||''}</span><span class="inst-name">${esc2(r.inst||'')}</span><span class="regs">${regs}</span>`;
+    frag.appendChild(div);
+  }
+  el.appendChild(frag);
+
+  const padBot = document.createElement('div'); padBot.style.height = ((N - end) * ROW_H) + 'px'; el.appendChild(padBot);
+}
+
+document.getElementById('inst-list').addEventListener('scroll', () => renderList());
+document.getElementById('inst-list').addEventListener('click', function(e) {
+  if (e.target.closest('.prod')) return; // handled by onclick
+  const row = e.target.closest('.inst-row'); if (!row) return;
+  const i = parseInt(row.getAttribute('data-i'));
+  if (i>=0 && i<cachedFiltered.length) {
+    state.selAllIdx = DS.all.indexOf(cachedFiltered[i]);
+    const r = cachedFiltered[i];
+    document.getElementById('tick-slider').value = state.selAllIdx;
+    document.getElementById('tick-label').textContent = r.tick;
+    updateAll();
+  }
+});
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const f = filtered();
+    const cur = selectedRec();
+    const fi = cur ? f.indexOf(cur) : -1;
+    const newFi = e.key === 'ArrowDown' ? Math.min(f.length-1, fi+1) : Math.max(0, fi-1);
+    if (newFi >= 0 && newFi < f.length) {
+      state.selAllIdx = DS.all.indexOf(f[newFi]);
+      document.getElementById('tick-slider').value = state.selAllIdx;
+      document.getElementById('tick-label').textContent = f[newFi].tick;
+      updateAll();
+    }
+  }
+});
+
+// =================== Right Panel ===================
+function updateRight() {
+  const r = selectedRec();
+  if (state.view === 'snapshot') { renderSnapshot(r); return; }
+  renderDeps(r);
+}
+
+function renderDeps(rec) {
+  const el = document.getElementById('right-content');
+  if (!rec) { el.innerHTML = '<div style="color:#666;padding:20px;">Select an instruction</div>'; return; }
+
+  const thisIdx = DS.all.indexOf(rec);
+  let seqInfo = '';
+  if (rec.fetch_seq !== undefined) seqInfo += ` FetchSeq: ${rec.fetch_seq}`;
+  if (rec.cp_seq !== undefined) seqInfo += ` CPSeq: ${rec.cp_seq}`;
+  let html = `<div style="margin-bottom:6px;"><b style="color:#888;">Dependencies @ tick ${rec.tick}</b><span style="color:#888;font-size:10px;margin-left:8px;">${seqInfo}</span></div>`;
+  html += '<table id="dep-table">';
+
+  // Source registers with producers
+  if (rec.src && rec.src.length > 0) {
+    for (let s of rec.src) {
+      const p = DS.getProducer(s.name);
+      html += '<tr>';
+      html += `<td class="dep-src">SRC</td><td class="dep-src">${s.name}</td>`;
+      html += `<td class="dep-val">${s.val}</td>`;
+      if (p && p.idx !== thisIdx) {
+        html += `<td class="dep-prod" onclick="jumpToIdx(${p.idx})">← ${esc2(p.inst)} @ tick ${p.tick}<br><span style="font-size:9px;color:#888;">PC ${p.pc}</span></td>`;
+      } else {
+        html += '<td class="dep-here">(uninit / self)</td>';
+      }
+      html += '</tr>';
+    }
+  }
+
+  // Destination registers (written by this instruction)
+  if (rec.dst && rec.dst.length > 0) {
+    for (let d of rec.dst) {
+      html += '<tr>';
+      html += `<td class="dep-dst">DST</td><td class="dep-dst">${d.name}</td>`;
+      html += `<td class="dep-val">${d.val}</td>`;
+      html += '<td class="dep-here">this instruction</td>';
+      html += '</tr>';
+    }
+  }
+
+  if ((!rec.src || rec.src.length === 0) && (!rec.dst || rec.dst.length === 0)) {
+    html += '<tr><td colspan="4" style="color:#666;">No register operands</td></tr>';
+  }
+
+  html += '</table>';
+  el.innerHTML = html;
+}
+
+function renderSnapshot(rec) {
+  const el = document.getElementById('right-content');
+  const tick = rec ? rec.tick : 0;
+  const vals = DS.getAllVals();
+  const chg = rec ? {src: new Set((rec.src||[]).map(s=>s.name)), dst: new Set((rec.dst||[]).map(d=>d.name))} : {src:new Set(), dst:new Set()};
+
+  let html = `<div style="margin-bottom:6px;">
+    <b style="color:#888;">Registers @ tick ${tick}</b>
+    <span style="margin-left:8px;font-size:10px;"><span style="color:#40a0ff;">src r/o</span> <span style="color:#ff6040;">dst w/o</span></span>
+  </div>`;
+  html += '<div style="max-height:calc(100vh-170px);overflow:auto;"><table id="snap-table"><tr><th>Register</th><th>Value</th></tr>';
+
+  const grps = new Map();
+  for (let [n,v] of vals) { const p = n.split('[')[0]; if(!grps.has(p)) grps.set(p,[]); grps.get(p).push({n,v}); }
+  for (let [p,regs] of grps) {
+    regs.sort((a,b)=>(parseInt((a.n.match(/\[(\d+)/)||['','0'])[1])||0) - (parseInt((b.n.match(/\[(\d+)/)||['','0'])[1])||0));
+    for (let x of regs) {
+      let cls = chg.src.has(x.n) ? 'snap-src' : chg.dst.has(x.n) ? 'snap-dst' : '';
+      html += `<tr class="${cls}"><td>${x.n}</td><td style="font-size:10px;">${x.v}</td></tr>`;
+    }
+  }
+  html += '</table></div>';
+  el.innerHTML = html;
+}
+
+// =================== Controls ===================
+document.getElementById('file-inp').addEventListener('change', e => {
+  if (e.target.files.length) loadFile(e.target.files[0]);
+});
+
+document.getElementById('thread-sel').addEventListener('change',e=>{ state.thread=e.target.value; updateAll(); });
+document.getElementById('search-box').addEventListener('input',e=>{ state.filter=e.target.value; updateAll(); });
+document.getElementById('tick-slider').addEventListener('input',e=>{
+  const i=parseInt(e.target.value);
+  if (i>=0 && i<DS.all.length) { state.selAllIdx = i;
+    document.getElementById('tick-label').textContent = DS.all[i].tick;
+    updateAll(); }
+});
+
+document.getElementById('btn-prev').addEventListener('click',()=>{
+  const f = filtered(); const cur = selectedRec();
+  const fi = cur ? f.indexOf(cur) : -1;
+  const prev = fi > 0 ? f[fi-1] : f[0];
+  if (prev) { state.selAllIdx = DS.all.indexOf(prev);
+    document.getElementById('tick-slider').value = state.selAllIdx;
+    document.getElementById('tick-label').textContent = prev.tick;
+    updateAll(); }
+});
+document.getElementById('btn-next').addEventListener('click',()=>{
+  const f = filtered(); const cur = selectedRec();
+  const fi = cur ? f.indexOf(cur) : -1;
+  const next = fi >= 0 && fi < f.length-1 ? f[fi+1] : f[f.length-1];
+  if (next) { state.selAllIdx = DS.all.indexOf(next);
+    document.getElementById('tick-slider').value = state.selAllIdx;
+    document.getElementById('tick-label').textContent = next.tick;
+    updateAll(); }
+});
+
+document.getElementById('right-tabs').addEventListener('click',e=>{
+  if (e.target.tagName!=='BUTTON') return;
+  [...e.currentTarget.children].forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active'); state.view=e.target.dataset.view; updateAll();
+});
+
+// Drag & drop
+let dz = document.getElementById('drop-zone');
+document.addEventListener('dragover',e=>{ e.preventDefault(); dz.classList.add('show'); });
+document.addEventListener('dragleave',e=>{ if(e.target===document.documentElement||e.target===dz) dz.classList.remove('show'); });
+document.addEventListener('drop',e=>{ e.preventDefault(); dz.classList.remove('show');
+  if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]); });
+
+window.addEventListener('resize',()=>{ renderList(); });
+
+function esc2(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>

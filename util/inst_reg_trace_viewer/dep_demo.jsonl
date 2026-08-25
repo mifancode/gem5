@@ -1,0 +1,4 @@
+{"tick":1000,"pc":"0x100","inst":"  mov   x0, #1","thread":0,"src":[],"dst":[{"name":"integer[0]","size":8,"val":"0x0100000000000000"}],"mem":{"addr":null,"size":0},"fault":false}
+{"tick":2000,"pc":"0x104","inst":"  mov   x1, x0","thread":0,"src":[{"name":"integer[0]","size":8,"val":"0x0100000000000000"}],"dst":[{"name":"integer[1]","size":8,"val":"0x0100000000000000"}],"mem":{"addr":null,"size":0},"fault":false}
+{"tick":3000,"pc":"0x108","inst":"  mov   x0, #2","thread":0,"src":[],"dst":[{"name":"integer[0]","size":8,"val":"0x0200000000000000"}],"mem":{"addr":null,"size":0},"fault":false}
+{"tick":4000,"pc":"0x10c","inst":"  mov   x2, x0","thread":0,"src":[{"name":"integer[0]","size":8,"val":"0x0200000000000000"}],"dst":[{"name":"integer[2]","size":8,"val":"0x0200000000000000"}],"mem":{"addr":null,"size":0},"fault":false}

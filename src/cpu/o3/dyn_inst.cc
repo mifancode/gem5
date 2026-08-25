@@ -99,6 +99,9 @@ DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &static_inst,
 {
     set(pc, _pc);
     set(predPC, pred_pc);
+
+    if (RegWritingRecord::enabled())
+        regWritingRecord = std::make_unique<RegWritingRecord>();
 }
 
 DynInst::DynInst(const Arrays &arrays, const StaticInstPtr &_staticInst,
@@ -453,6 +456,17 @@ DynInst::initiateMemAMO(Addr addr, unsigned size, Request::Flags flags,
             dynamic_cast<DynInstPtr::PtrType>(this),
             /* atomic */ false, nullptr, size, addr, flags, nullptr,
             std::move(amo_op), std::vector<bool>(size, true));
+}
+
+void
+DynInst::recordReg(int idx, const void *val, size_t size, bool isDest)
+{
+    if (!regWritingRecord)
+        return;
+    const RegId &reg = isDest ? staticInst->destRegIdx(idx)
+                              : staticInst->srcRegIdx(idx);
+    regWritingRecord->addEntry(reg.regClass().regName(reg),
+                               val, size, isDest);
 }
 
 } // namespace o3

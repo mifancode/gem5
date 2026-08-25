@@ -120,9 +120,13 @@ let {{
         @overrideInOperand
         def makeRead(self):
             '''Maybe PC read'''
-            return f'{self.base_name} = ({self.reg_spec} == int_reg::Pc) ? ' \
-                   f'readPC(xc) : xc->getRegOperand(' \
-                   f'this, {self.src_reg_idx});\n'
+            return f'''RegVal __raw_s{self.src_reg_idx} = ({self.reg_spec} == int_reg::Pc) ?
+                (RegVal)readPC(xc) :
+                xc->getRegOperand(this, {self.src_reg_idx});
+            {self.base_name} = __raw_s{self.src_reg_idx};
+            xc->recordReg({self.src_reg_idx},
+                &__raw_s{self.src_reg_idx}, sizeof(RegVal), false);
+'''
         @overrideInOperand
         def makeWrite(self):
             '''Maybe PC write'''
@@ -131,8 +135,11 @@ let {{
                 setNextPC(xc, {self.base_name});
             else
                 xc->setRegOperand(this, {self.dest_reg_idx}, {self.base_name});
-            if (traceData)
+            if (traceData) {"{"}
                 traceData->setData({self.reg_class}, {self.base_name});
+            {"}"}
+            xc->recordReg({self.dest_reg_idx}, &{self.base_name},
+                    sizeof(RegVal), true);
             '''
 
     class PIntReg(IntReg):
@@ -143,9 +150,13 @@ let {{
         @overrideInOperand
         def makeRead(self):
             '''Maybe aligned PC read'''
-            return f'{self.base_name} = ({self.reg_spec} == int_reg::Pc) ? ' \
-                   f'(roundDown(readPC(xc), 4)) : ' \
-                   f'xc->getRegOperand(this, {self.src_reg_idx});\n'
+            return f'''RegVal __raw_s{self.src_reg_idx} = ({self.reg_spec} == int_reg::Pc) ?
+                (RegVal)(roundDown(readPC(xc), 4)) :
+                xc->getRegOperand(this, {self.src_reg_idx});
+            {self.base_name} = __raw_s{self.src_reg_idx};
+            xc->recordReg({self.src_reg_idx},
+                &__raw_s{self.src_reg_idx}, sizeof(RegVal), false);
+'''
 
     class IntRegIWPC(IntReg):
         @overrideInOperand
@@ -156,8 +167,11 @@ let {{
                 setIWNextPC(xc, {self.base_name});
             else
                 xc->setRegOperand(this, {self.dest_reg_idx}, {self.base_name});
-            if (traceData)
+            if (traceData) {"{"}
                 traceData->setData({self.reg_class}, {self.base_name});
+            {"}"}
+            xc->recordReg({self.dest_reg_idx}, &{self.base_name},
+                    sizeof(RegVal), true);
             '''
 
     class IntRegAIWPC(IntReg):
@@ -173,8 +187,11 @@ let {{
             {"}"} else {"{"}
                 xc->setRegOperand(this, {self.dest_reg_idx}, {self.base_name});
             {"}"}
-            if (traceData)
+            if (traceData) {"{"}
                 traceData->setData({self.reg_class}, {self.base_name});
+            {"}"}
+            xc->recordReg({self.dest_reg_idx}, &{self.base_name},
+                    sizeof(RegVal), true);
             '''
 
     class IntReg64(IntRegOp):
@@ -185,17 +202,24 @@ let {{
         @overrideInOperand
         def makeRead(self):
             '''aarch64 read'''
-            return f'{self.base_name} = ' \
-                   f'(xc->getRegOperand(this, {self.src_reg_idx})) & ' \
-                   f'mask(intWidth);\n'
+            return f'''RegVal __raw_s{self.src_reg_idx} =
+                xc->getRegOperand(this, {self.src_reg_idx});
+            {self.base_name} = __raw_s{self.src_reg_idx} &
+                mask(intWidth);
+            xc->recordReg({self.src_reg_idx},
+                &__raw_s{self.src_reg_idx}, sizeof(RegVal), false);
+'''
         @overrideInOperand
         def makeWrite(self):
             '''aarch64 write'''
             return f'''
             xc->setRegOperand(this, {self.dest_reg_idx}, {self.base_name} &
                 mask(intWidth));
-            if (traceData)
+            if (traceData) {"{"}
                 traceData->setData({self.reg_class}, {self.base_name});
+            {"}"}
+            xc->recordReg({self.dest_reg_idx}, &{self.base_name},
+                    sizeof(RegVal), true);
             '''
         def __init__(self, idx, id=srtNormal):
             super().__init__('ud', idx, 'IsInteger', id)
@@ -204,34 +228,48 @@ let {{
         @overrideInOperand
         def makeRead(self):
             '''Maybe masked to 32 bit read'''
-            return f'{self.base_name} = ' \
-                   f'(xc->getRegOperand(this, {self.src_reg_idx}) & ' \
-                    'mask(aarch64 ? 64 : 32));\n'
+            return f'''RegVal __raw_s{self.src_reg_idx} =
+                xc->getRegOperand(this, {self.src_reg_idx});
+            {self.base_name} = __raw_s{self.src_reg_idx} &
+                mask(aarch64 ? 64 : 32);
+            xc->recordReg({self.src_reg_idx},
+                &__raw_s{self.src_reg_idx}, sizeof(RegVal), false);
+'''
         @overrideInOperand
         def makeWrite(self):
             '''Maybe masked to 32 bit write'''
             return f'''
             xc->setRegOperand(this, {self.dest_reg_idx}, {self.base_name} &
                     mask(aarch64 ? 64 : 32));
-            if (traceData)
+            if (traceData) {"{"}
                 traceData->setData({self.reg_class}, {self.base_name});
+            {"}"}
+            xc->recordReg({self.dest_reg_idx}, &{self.base_name},
+                    sizeof(RegVal), true);
             '''
 
     class IntRegW64(IntReg64):
         @overrideInOperand
         def makeRead(self):
             '''Masked to 32 bit read'''
-            return f'{self.base_name} = ' \
-                   f'(xc->getRegOperand(this, {self.src_reg_idx})) & ' \
-                   f'mask(32);\n'
+            return f'''RegVal __raw_s{self.src_reg_idx} =
+                xc->getRegOperand(this, {self.src_reg_idx});
+            {self.base_name} = __raw_s{self.src_reg_idx} &
+                mask(32);
+            xc->recordReg({self.src_reg_idx},
+                &__raw_s{self.src_reg_idx}, sizeof(RegVal), false);
+'''
         @overrideInOperand
         def makeWrite(self):
             '''Masked to 32 bit write'''
             return f'''
             xc->setRegOperand(this, {self.dest_reg_idx}, {self.base_name} &
                     mask(32));
-            if (traceData)
+            if (traceData) {"{"}
                 traceData->setData({self.reg_class}, {self.base_name});
+            {"}"}
+            xc->recordReg({self.dest_reg_idx}, &{self.base_name},
+                    sizeof(RegVal), true);
             '''
 
     class CCReg(CCRegOp):
@@ -249,15 +287,22 @@ let {{
     class CntrlNsBankedReg(CntrlReg):
         @overrideInOperand
         def makeRead(self):
-            return f'{self.base_name} = ' \
-                   f'xc->readMiscReg(snsBankedIndex(op1, xc->tcBase()));\n'
+            return f'''RegVal __raw_s{self.src_reg_idx} =
+                xc->readMiscReg(snsBankedIndex(op1, xc->tcBase()));
+            {self.base_name} = __raw_s{self.src_reg_idx};
+            xc->recordReg({self.src_reg_idx},
+                &__raw_s{self.src_reg_idx}, sizeof(RegVal), false);
+'''
         @overrideInOperand
         def makeWrite(self):
             return f'''
             xc->setMiscReg(snsBankedIndex(dest, xc->tcBase()),
                            {self.base_name});
-            if (traceData)
+            if (traceData) {"{"}
                 traceData->setData({self.reg_class}, {self.base_name});
+            {"}"}
+            xc->recordReg({self.dest_reg_idx}, &{self.base_name},
+                    sizeof(RegVal), true);
             '''
         def __init__(self, idx, id=srtNormal, ctype='uw'):
             super().__init__(idx, id, ctype, (None, None, 'IsControl'))

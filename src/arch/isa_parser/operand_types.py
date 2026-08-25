@@ -217,14 +217,20 @@ class RegOperand(Operand):
 
 class RegValOperand(RegOperand):
     def makeRead(self):
-        reg_val = f"xc->getRegOperand(this, {self.src_reg_idx})"
+        raw_val = f"xc->getRegOperand(this, {self.src_reg_idx})"
+
+        read = f"RegVal __raw_s{self.src_reg_idx} = {raw_val};\n"
 
         if self.ctype == "float":
-            reg_val = f"bitsToFloat32({reg_val})"
+            read += f"{self.base_name} = bitsToFloat32(__raw_s{self.src_reg_idx});\n"
         elif self.ctype == "double":
-            reg_val = f"bitsToFloat64({reg_val})"
+            read += f"{self.base_name} = bitsToFloat64(__raw_s{self.src_reg_idx});\n"
+        else:
+            read += f"{self.base_name} = __raw_s{self.src_reg_idx};\n"
 
-        return f"{self.base_name} = {reg_val};\n"
+        read += f"""            xc->recordReg({self.src_reg_idx}, &__raw_s{self.src_reg_idx}, sizeof(RegVal), false);
+"""
+        return read
 
     def makeWrite(self):
         reg_val = self.base_name
@@ -241,6 +247,7 @@ class RegValOperand(RegOperand):
             if (traceData) {{
                 traceData->setData({self.reg_class}, final_val);
             }}
+            xc->recordReg({self.dest_reg_idx}, &final_val, sizeof(RegVal), true);
         }}"""
 
 
@@ -355,6 +362,9 @@ class VecRegOperand(RegOperand):
             f"\t\txc->getRegOperand(this, {self.src_reg_idx},\n"
             f"\t\t    &{tmp_name});\n"
         )
+        c_read += f"""\t\t            xc->recordReg({self.src_reg_idx}, &{tmp_name},
+                sizeof({tmp_name}), false);
+"""
         # If the parser has detected that elements are being access, create
         # the appropriate view
         if self.elemExt:
@@ -374,6 +384,8 @@ class VecRegOperand(RegOperand):
         if (traceData) {{
             traceData->setData({self.reg_class}, &tmp_d{self.dest_reg_idx});
         }}
+        xc->recordReg({self.dest_reg_idx}, &tmp_d{self.dest_reg_idx},
+                sizeof(tmp_d{self.dest_reg_idx}), true);
         """
 
     def finalize(self):
@@ -401,6 +413,9 @@ class VecPredRegOperand(RegOperand):
             f"xc->getRegOperand(this, {self.src_reg_idx}, "
             f"&{tmp_name});\n"
         )
+        c_read += f"""\t\t            xc->recordReg({self.src_reg_idx}, &{tmp_name},
+                sizeof({tmp_name}), false);
+"""
         if self.ext:
             c_read += (
                 f"\t\tauto {self.base_name} = {tmp_name}.as<"
@@ -428,6 +443,8 @@ class VecPredRegOperand(RegOperand):
         if (traceData) {{
             traceData->setData({self.reg_class}, &tmp_d{self.dest_reg_idx});
         }}
+        xc->recordReg({self.dest_reg_idx}, &tmp_d{self.dest_reg_idx},
+                sizeof(tmp_d{self.dest_reg_idx}), true);
         """
 
     def finalize(self):
@@ -471,8 +488,11 @@ class MatRegOperand(RegOperand):
             f"\t\t        tmp_s{self.src_reg_idx};\n"
             f"\t\txc->getRegOperand(this, {self.src_reg_idx},\n"
             f"\t\t        &tmp_s{self.src_reg_idx});\n"
-            f"\t\tauto &{name} = tmp_s{self.src_reg_idx};\n"
         )
+        c_read += f"""\t\t            xc->recordReg({self.src_reg_idx}, &tmp_s{self.src_reg_idx},
+                sizeof(tmp_s{self.src_reg_idx}), false);
+"""
+        c_read += f"\t\tauto &{name} = tmp_s{self.src_reg_idx};\n"
 
         # The following is required due to the way that the O3 CPU
         # works. The ZA register is seen as two physical registers; one
@@ -491,6 +511,8 @@ class MatRegOperand(RegOperand):
         if (traceData) {{
             traceData->setData({self.reg_class}, &tmp_d{self.dest_reg_idx});
         }}
+        xc->recordReg({self.dest_reg_idx}, &tmp_d{self.dest_reg_idx},
+                sizeof(tmp_d{self.dest_reg_idx}), true);
         """
 
     def finalize(self):
@@ -519,8 +541,11 @@ class ControlRegOperand(RegOperand):
             error("Attempt to read control register as FP")
 
         return (
-            f"{self.base_name} = "
+            f"RegVal __raw_s{self.src_reg_idx} = "
             f"xc->readMiscRegOperand(this, {self.src_reg_idx});\n"
+            f"{self.base_name} = __raw_s{self.src_reg_idx};\n"
+                        f"            xc->recordReg({self.src_reg_idx}, "
+            f"&__raw_s{self.src_reg_idx}, sizeof(RegVal), false);\n"
         )
 
     def makeWrite(self):
@@ -534,6 +559,8 @@ class ControlRegOperand(RegOperand):
         if (traceData) {{
             traceData->setData({self.reg_class}, {self.base_name});
         }}
+        xc->recordReg({self.dest_reg_idx}, &{self.base_name},
+                sizeof(RegVal), true);
         """
 
         return wb

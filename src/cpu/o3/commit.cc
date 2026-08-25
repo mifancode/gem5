@@ -1242,6 +1242,20 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
             head_inst->traceData = NULL;
         }
 
+        if (head_inst->getRegWritingRecord()) {
+            if (debug::ExecFaulting
+                && dynamic_cast<ReExec*>(inst_fault.get()) == nullptr) {
+                head_inst->getRegWritingRecord()->setFaulting(true);
+                head_inst->getRegWritingRecord()->setFetchSeq(
+                    head_inst->seqNum);
+                head_inst->getRegWritingRecord()->dump(
+                    head_inst->fetchTick, head_inst->pcState().instAddr(),
+                    head_inst->staticInst->disassemble(
+                        head_inst->pcState().instAddr(),
+                        &loader::debugSymbolTable), tid);
+            }
+        }
+
         // Generate trap squash event.
         generateTrapEvent(tid, inst_fault);
         return false;
@@ -1281,6 +1295,15 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         head_inst->traceData->dump();
         delete head_inst->traceData;
         head_inst->traceData = NULL;
+    }
+
+    if (head_inst->getRegWritingRecord()) {
+        head_inst->getRegWritingRecord()->setFetchSeq(head_inst->seqNum);
+        head_inst->getRegWritingRecord()->dump(
+            head_inst->fetchTick, head_inst->pcState().instAddr(),
+            head_inst->staticInst->disassemble(
+                head_inst->pcState().instAddr(),
+                &loader::debugSymbolTable), tid);
     }
 
     // If this was a store, record it for this cycle.

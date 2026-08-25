@@ -837,6 +837,9 @@ LSQ::pushRequest(const DynInstPtr& inst, bool isLoad, uint8_t *data,
     if (inst->traceData)
         inst->traceData->setMem(addr, size, flags);
 
+    if (inst->getRegWritingRecord())
+        inst->getRegWritingRecord()->setMem(addr, size);
+
     return inst->getFault();
 }
 

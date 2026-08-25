@@ -46,6 +46,7 @@
 #include <array>
 #include <deque>
 #include <list>
+#include <memory>
 #include <string>
 
 #include "base/refcnt.hh"
@@ -60,6 +61,7 @@
 #include "cpu/o3/lsq_unit.hh"
 #include "cpu/op_class.hh"
 #include "cpu/reg_class.hh"
+#include "cpu/reg_writing_record.hh"
 #include "cpu/static_inst.hh"
 #include "cpu/translation.hh"
 #include "debug/HtmCpu.hh"
@@ -139,6 +141,17 @@ class DynInst : public ExecContext, public RefCounted
 
     /** InstRecord that tracks this instructions. */
     trace::InstRecord *traceData = nullptr;
+
+    /** Optional per-instruction register value record. */
+    std::unique_ptr<RegWritingRecord> regWritingRecord;
+
+    /** Return the register value record for this instruction, or
+     *  nullptr if none was created (recording disabled). */
+    RegWritingRecord *
+    getRegWritingRecord()
+    {
+        return regWritingRecord.get();
+    }
 
   protected:
     enum Status
@@ -932,6 +945,14 @@ class DynInst : public ExecContext, public RefCounted
             traceData->setPredicate(val);
         }
     }
+
+    /**
+     * Record a register access at execute time.  Forwards to this
+     * instruction's RegWritingRecord (if any), resolving the operand
+     * index to an architectural register name.
+     */
+    void recordReg(int idx, const void *val,
+                   size_t size, bool isDest) override;
 
     bool
     readMemAccPredicate() const override

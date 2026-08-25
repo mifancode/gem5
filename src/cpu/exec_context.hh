@@ -206,6 +206,21 @@ class ExecContext
     virtual bool readMemAccPredicate() const = 0;
     virtual void setMemAccPredicate(bool val) = 0;
 
+    /**
+     * Optional hook for recording register accesses (sources and
+     * destinations) at execute time.
+     *
+     * The base implementation is a no-op.  CPU models that want to
+     * collect per-instruction register values override this method
+     * (e.g. O3's DynInst forwards to a RegWritingRecord).  \a idx is
+     * the instruction operand index (an index into srcRegIdx() or
+     * destRegIdx(), depending on \a isDest).  \a val points to \a size
+     * raw bytes of the register value, captured before any masking or
+     * type conversion.
+     */
+    virtual void recordReg(int idx, const void *val,
+                           size_t size, bool isDest) {}
+
     // hardware transactional memory
     virtual uint64_t newHtmTransactionUid() const = 0;
     virtual uint64_t getHtmTransactionUid() const = 0;

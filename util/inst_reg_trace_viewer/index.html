@@ -6,69 +6,78 @@
 <title>InstRegTrace Viewer</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-body { font:13px/1.35 monospace; background:#1a1a2e; color:#e0e0e0; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
-#ctl { background:#16213e; padding:6px 10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; border-bottom:1px solid #0f3460; flex-shrink:0; z-index:2; }
-#ctl label.btn { background:#0f3460; color:#e0; border:1px solid #1a1a4e; padding:4px 8px; border-radius:4px; cursor:pointer; font:inherit; display:inline-block; }
-#ctl label.btn:hover { background:#1a5276; }
-#ctl button, #ctl select, #ctl input[type="text"], #ctl input[type="range"] { background:#0f3460; color:#e0; border:1px solid #1a1a4e; padding:4px 8px; border-radius:4px; cursor:pointer; font:inherit; }
-#ctl button:hover { background:#1a5276; }
-#ctl .sep { width:1px; height:16px; background:#0f3460; margin:0 2px; }
-#ctl label.lbl { color:#888; font-size:11px; }
-#ctl #stats { margin-left:auto; color:#4a4; font-size:11px; white-space:nowrap; }
-#drop-zone { position:absolute; top:0;left:0;right:0;bottom:0; background:rgba(64,160,255,0.08); border:3px dashed #40a0ff; display:flex; align-items:center; justify-content:center; font-size:18px; color:#40a0ff; z-index:99; pointer-events:none; opacity:0; transition:opacity 0.15s; }
+body { font:13px/1.35 ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace; background:#13131d; color:#e6e6e6; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+#ctl { background:#181826; padding:7px 12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; border-bottom:1px solid #24243a; flex-shrink:0; z-index:2; }
+#ctl label.btn { background:#202038; color:#e6e6e6; border:1px solid #2d2d4b; padding:5px 10px; border-radius:6px; cursor:pointer; font:inherit; display:inline-block; transition:background .12s,border-color .12s; }
+#ctl label.btn:hover { background:#2b2b52; border-color:#3d3d6a; }
+#ctl button, #ctl select, #ctl input[type="text"] { background:#202038; color:#e6e6e6; border:1px solid #2d2d4b; padding:5px 10px; border-radius:6px; cursor:pointer; font:inherit; transition:background .12s,border-color .12s; }
+#ctl button:hover { background:#2b2b52; border-color:#3d3d6a; }
+#ctl input[type="range"] { accent-color:#4d9fff; cursor:pointer; }
+#ctl .sep { width:1px; height:18px; background:#24243a; margin:0 2px; }
+#ctl label.lbl { color:#8b93ab; font-size:11px; }
+#ctl #stats { margin-left:auto; color:#5fd6a6; font-size:11px; white-space:nowrap; }
+#drop-zone { position:absolute; top:0;left:0;right:0;bottom:0; background:rgba(77,159,255,0.07); border:3px dashed #4d9fff; display:flex; align-items:center; justify-content:center; font-size:18px; color:#4d9fff; z-index:99; pointer-events:none; opacity:0; transition:opacity 0.15s; }
 #drop-zone.show { opacity:1; }
 
 #main { display:flex; flex:1; overflow:hidden; min-height:0; }
-#inst-panel { flex:2; overflow:hidden; display:flex; flex-direction:column; border-right:1px solid #0f3460; min-width:0; }
-#right-panel { flex:1; overflow:hidden; display:flex; flex-direction:column; background:#16213e; min-width:280px; max-width:560px; }
+#inst-panel { flex:1; overflow:hidden; display:flex; flex-direction:column; border-right:1px solid #24243a; min-width:0; }
+#right-panel { flex:1; overflow:hidden; display:flex; flex-direction:column; background:#181826; min-width:360px; max-width:760px; }
 
-#inst-hdr { background:#0f3460; padding:5px 10px; display:grid; grid-template-columns:90px 80px minmax(0,3fr) minmax(0,1fr); font-weight:bold; font-size:11px; color:#aaa; flex-shrink:0; gap:4px; }
-#inst-list { flex:1; overflow-y:auto; }
-#inst-list::-webkit-scrollbar { width:6px; }
-#inst-list::-webkit-scrollbar-thumb { background:#0f3460; border-radius:3px; }
+#inst-hdr { background:#181826; padding:6px 10px; display:grid; grid-template-columns:88px 60px 46px 76px minmax(0,1fr); font-weight:600; font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:#8b93ab; flex-shrink:0; gap:4px; border-bottom:1px solid #24243a; }
+#inst-list { flex:1; overflow-y:auto; overflow-anchor:none; scrollbar-width:thin; scrollbar-color:#34345c transparent; }
+#inst-list::-webkit-scrollbar { width:9px; }
+#inst-list::-webkit-scrollbar-track { background:transparent; }
+#inst-list::-webkit-scrollbar-thumb { background:#2b2b48; border-radius:5px; border:2px solid #13131d; }
+#inst-list::-webkit-scrollbar-thumb:hover { background:#3d3d66; }
 
-.inst-row { display:grid; grid-template-columns:90px 80px minmax(0,3fr) minmax(0,1fr); padding:2px 10px; border-bottom:1px solid #0f3460; cursor:pointer; font-size:12px; line-height:1.5; gap:4px; user-select:none; }
-.inst-row:hover { background:#1a1a4e; }
-.inst-row.sel { background:#0f3460; }
-.tick { color:#f0c040; white-space:nowrap; }
-.pc { color:#40c0f0; white-space:nowrap; }
-.inst-name { color:#e0e0e0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.regs { font-size:10px; line-height:1.6; display:flex; flex-wrap:wrap; align-items:center; gap:2px 6px; }
-.rg { padding:0 3px; border-radius:3px; white-space:nowrap; }
-.rg.src { color:#40a0ff; background:rgba(64,160,255,0.10); }
-.rg.dst { color:#ff6040; background:rgba(255,96,64,0.10); }
-.rg.mem { color:#40c080; background:rgba(64,192,128,0.10); }
-.rg-size { color:#777; font-size:9px; margin-left:2px; }
-.fault-tag { color:#f04040; font-weight:bold; }
-.prod { color:#f0c040; font-size:9px; cursor:pointer; text-decoration:underline; white-space:nowrap; }
-.prod:hover { color:#fff; }
+.inst-row { position:absolute; left:0; right:0; height:24px; display:grid; grid-template-columns:88px 60px 46px 76px minmax(0,1fr); align-items:center; padding:0 10px; border-bottom:1px solid #1e1e31; cursor:pointer; font-size:12px; gap:4px; user-select:none; overflow:hidden; transition:background .1s; }
+.list-spacer { position:relative; }
+.inst-row:hover { background:#1b1b2c; }
+.inst-row.sel { background:#0e2b47; box-shadow:inset 3px 0 0 #4d9fff; }
+.tick { color:#f5c34a; }
+.pc { color:#55b6f2; }
+.seq { color:#9aa3b8; }
+.core { color:#9aa3b8; }
+.inst-name { color:#e6e6e6; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
-#right-tabs { display:flex; background:#0f3460; flex-shrink:0; }
-#right-tabs button { flex:1; padding:7px; background:transparent; color:#888; border:none; border-bottom:2px solid transparent; cursor:pointer; font:inherit; transition:color 0.15s; }
-#right-tabs button.active { color:#e0e0e0; border-bottom-color:#40a0ff; }
-#right-content { flex:1; overflow-y:auto; padding:8px; }
+#right-tabs { display:flex; background:#181826; flex-shrink:0; border-bottom:1px solid #24243a; }
+#right-tabs button { flex:1; padding:8px; background:transparent; color:#8b93ab; border:none; border-bottom:2px solid transparent; cursor:pointer; font:inherit; transition:color .15s,border-color .15s; }
+#right-tabs button:hover { color:#cfd4e4; }
+#right-tabs button.active { color:#e6e6e6; border-bottom-color:#4d9fff; }
+#right-content { flex:1; overflow-y:auto; padding:8px; scrollbar-width:thin; scrollbar-color:#34345c transparent; }
+#right-content::-webkit-scrollbar { width:9px; }
+#right-content::-webkit-scrollbar-thumb { background:#2b2b48; border-radius:5px; border:2px solid #181826; }
 
 #dep-table { width:100%; font-size:11px; }
-#dep-table td { padding:3px 6px; vertical-align:top; border-bottom:1px solid #1a1a4e; }
-.mono { font-family:monospace; }
-.dep-val-box { min-width:340px; max-width:360px; max-height:9em; overflow:auto; white-space:pre; background:#10102a; border:1px solid #1a1a4e; border-radius:3px; padding:2px 4px; font-size:10px; line-height:1.35; }
-.copy-btn { font-size:9px; margin-left:4px; cursor:pointer; background:#0f3460; color:#e0e0e0; border:1px solid #1a1a4e; border-radius:3px; padding:1px 5px; }
-.copy-btn:hover { background:#1a5276; }
-#dep-table .dep-src { color:#40a0ff; font-weight:bold; }
-#dep-table .dep-dst { color:#ff6040; font-weight:bold; }
-#dep-table .dep-val { color:#e0e0e0; }
-#dep-table .dep-prod { color:#f0c040; font-size:10px; cursor:pointer; text-decoration:underline; }
+#dep-table td { padding:4px 6px; vertical-align:top; border-bottom:1px solid #222238; }
+.mono { font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace; }
+.dep-val-box { min-width:340px; max-width:360px; max-height:9em; overflow:auto; white-space:pre; background:#10101d; border:1px solid #24243a; border-radius:6px; padding:3px 5px; font-size:10px; line-height:1.35; }
+.dep-val-box::-webkit-scrollbar { width:8px; height:8px; }
+.dep-val-box::-webkit-scrollbar-thumb { background:#2b2b48; border-radius:4px; }
+.copy-btn { font-size:9px; margin-left:4px; cursor:pointer; background:#202038; color:#e6e6e6; border:1px solid #2d2d4b; border-radius:4px; padding:2px 6px; transition:background .12s; }
+.copy-btn:hover { background:#2b2b52; }
+#dep-table .dep-src, #dep-table .dep-dst { display:inline-block; padding:1px 6px; border-radius:4px; font-size:9px; }
+#dep-table .dep-src { color:#7db8ff; background:rgba(77,159,255,0.13); border:1px solid rgba(77,159,255,0.28); }
+#dep-table .dep-mem { display:inline-block; padding:1px 6px; border-radius:4px; font-size:9px; color:#5fd6a6; background:rgba(70,200,140,0.12); border:1px solid rgba(70,200,140,0.30); }
+#dep-table .dep-dst { color:#ff8f70; background:rgba(255,105,64,0.12); border:1px solid rgba(255,105,64,0.30); }
+#dep-table .dep-val { color:#e6e6e6; }
+#dep-table .dep-prod { color:#f5c34a; font-size:10px; cursor:pointer; text-decoration:underline; }
 #dep-table .dep-prod:hover { color:#fff; }
-#dep-table .dep-here { color:#666; font-size:10px; }
+#dep-table .dep-here { color:#6b7388; font-size:10px; }
 
 #snap-table { width:100%; border-collapse:collapse; font-size:11px; }
-#snap-table th { background:#0f3460; padding:3px 6px; text-align:left; color:#888; position:sticky; top:0; z-index:1; }
-#snap-table td { padding:2px 6px; border-bottom:1px solid #1a1a4e; }
-.snap-src { background:rgba(64,160,255,0.10); }
-.snap-dst { background:rgba(255,96,64,0.10); }
+#snap-table th { background:#202038; padding:4px 6px; text-align:left; color:#8b93ab; position:sticky; top:0; z-index:1; }
+#snap-table td { padding:3px 6px; border-bottom:1px solid #222238; }
+.snap-toggle { cursor:pointer; color:#7db8ff; }
+.snap-toggle:hover { color:#fff; }
+.snap-caret { font-size:9px; color:#8b93ab; }
+.snap-src { background:rgba(77,159,255,0.08); }
+.snap-dst { background:rgba(255,105,64,0.08); }
 
-#search-box { width:140px; background:#0f3460; color:#e0; border:1px solid #1a1a4e; padding:4px 8px; border-radius:4px; font:inherit; }
-#search-box::placeholder { color:#555; }
+#search-box { width:150px; background:#202038; color:#e6e6e6; border:1px solid #2d2d4b; padding:5px 10px; border-radius:6px; font:inherit; }
+#search-box:focus { outline:none; border-color:#4d9fff; }
+#search-box::placeholder { color:#555d73; }
 </style>
 </head>
 <body>
@@ -91,7 +100,7 @@ body { font:13px/1.35 monospace; background:#1a1a2e; color:#e0e0e0; height:100vh
 
 <div id="main">
   <div id="inst-panel">
-    <div id="inst-hdr"><span>Tick</span><span>PC</span><span>Instruction</span><span>Registers &amp; Dependencies</span></div>
+    <div id="inst-hdr"><span>Tick</span><span>Seq</span><span>Core</span><span>PC</span><span>Instruction</span></div>
     <div id="inst-list"></div>
   </div>
   <div id="right-panel">
@@ -250,63 +259,58 @@ function updateAll() {
   updateRight();
 }
 
+const ROW_H = 24;
+
 function renderList() {
   const el = document.getElementById('inst-list');
   const N = cachedFiltered.length;
-  el.innerHTML = '';
-  if (N === 0) { el.innerHTML = '<div style="color:#666;padding:20px;text-align:center;">No matching instructions</div>'; return; }
 
-  const ROW_H = 24;
+  // One constant-height spacer holds absolutely-positioned rows.  The
+  // spacer height only depends on N, so re-rendering the row window never
+  // changes the container's total height or the content above the
+  // viewport: there is nothing for the browser to anchor, clamp, or
+  // re-scroll, which eliminates wheel snap-back, jitter and runaway
+  // scrolling.  (overflow-anchor:none additionally disables anchoring.)
+  let sp = el._spacer;
+  if (!sp) {
+    el.innerHTML = '';
+    sp = document.createElement('div');
+    sp.className = 'list-spacer';
+    el.appendChild(sp);
+    el._spacer = sp;
+  }
+  sp.style.height = (N * ROW_H) + 'px';
+
+  if (N === 0) {
+    sp.innerHTML = '<div style="color:#666;padding:20px;text-align:center;">No matching instructions</div>';
+    return;
+  }
+
+  const st = el.scrollTop;
   const viewH = el.clientHeight || 600;
-  const totalH = N * ROW_H;
-  const start = Math.max(0, Math.floor(el.scrollTop / ROW_H) - 10);
-  const end = Math.min(N, Math.ceil((el.scrollTop + viewH) / ROW_H) + 10);
-
-  const padTop = document.createElement('div'); padTop.style.height = (start * ROW_H) + 'px'; el.appendChild(padTop);
+  const start = Math.max(0, Math.floor(st / ROW_H) - 10);
+  const end = Math.min(N, Math.ceil((st + viewH) / ROW_H) + 10);
 
   const cur = selectedRec();
-
-  const frag = document.createDocumentFragment();
+  let html = '';
   for (let i = start; i < end; i++) {
     const r = cachedFiltered[i];
-    const div = document.createElement('div');
-    div.className = 'inst-row' + (r === cur ? ' sel' : '');
-    div.setAttribute('data-i', i);
-
-    const ridx = DS.all.indexOf(r);
-    let regs = '';
-    if (r.fault) regs += '<span class="fault-tag">FAULT</span> ';
-    if (r.src) for (let s of r.src) {
-      const p = DS.getProducerBefore(s.name, ridx, r.thread);
-      const big = s.size > 8;
-      // large registers: show name + size only; the value lives in the
-      // detail panel (hexdump grid), keeping the list readable
-      regs += `<span class="rg src" title="src ${s.name} (${s.size}B)">${s.name}` +
-              (big ? '' : '=' + fmtVal(s.val, s.size)) +
-              (big ? `<span class="rg-size">${s.size}B</span>` : '') + '</span>';
-      if (p) {
-        const prod = DS.all[p.idx];
-        regs += `<span class="prod" onclick="event.stopPropagation();jumpToIdx(${p.idx})" title="src ${s.name} ← produced by ${esc2(prod.inst)} @ tick ${prod.tick}">&larr;${prod.pc||''}</span>`;
-      }
-      regs += ' ';
-    }
-    if (r.dst) for (let d of r.dst) {
-      const big = d.size > 8;
-      regs += `<span class="rg dst" title="dst ${d.name} (${d.size}B)">${d.name}` +
-              (big ? '' : '=' + fmtVal(d.val, d.size)) +
-              (big ? `<span class="rg-size">${d.size}B</span>` : '') + '</span> ';
-    }
-    if (r.mem && r.mem.addr) regs += `<span class="rg mem">M[${r.mem.addr}]+${r.mem.size}</span>`;
-
-    div.innerHTML = `<span class="tick">${r.tick}</span><span class="pc">${r.pc||''}</span><span class="inst-name">${esc2(r.inst||'')}</span><span class="regs">${regs}</span>`;
-    frag.appendChild(div);
+    html += `<div class="inst-row${r === cur ? ' sel' : ''}" style="top:${i * ROW_H}px" data-i="${i}">` +
+            `<span class="tick">${r.tick}</span>` +
+            `<span class="seq">${r.fetch_seq ?? ''}</span><span class="core">${r.core ?? ''}</span>` +
+            `<span class="pc">${r.pc||''}</span>` +
+            `<span class="inst-name">${esc2(r.inst||'')}</span></div>`;
   }
-  el.appendChild(frag);
-
-  const padBot = document.createElement('div'); padBot.style.height = ((N - end) * ROW_H) + 'px'; el.appendChild(padBot);
+  sp.innerHTML = html;
 }
 
-document.getElementById('inst-list').addEventListener('scroll', () => renderList());
+// Throttle re-renders to one per animation frame: rapid scroll events
+// coalesce instead of rebuilding the row window every event.
+let _renderRaf = 0;
+document.getElementById('inst-list').addEventListener('scroll', () => {
+  if (_renderRaf) return;
+  _renderRaf = requestAnimationFrame(() => { _renderRaf = 0; renderList(); });
+});
 document.getElementById('inst-list').addEventListener('click', function(e) {
   if (e.target.closest('.prod')) return; // handled by onclick
   const row = e.target.closest('.inst-row'); if (!row) return;
@@ -365,7 +369,7 @@ function renderDeps(rec) {
       html += `<td class="dep-val">${fmtValBox(s.val, s.size)}</td>`;
       if (p) {
         const prod = DS.all[p.idx];
-        html += `<td class="dep-prod" onclick="jumpToIdx(${p.idx})">← ${esc2(prod.inst)} @ tick ${prod.tick}<br><span style="font-size:9px;color:#888;">PC ${prod.pc}</span></td>`;
+        html += `<td class="dep-prod" onclick="jumpToIdx(${p.idx})">← ${esc2(prod.inst)} @ tick ${prod.tick} <span style="font-size:9px;color:#8b93ab;">#${p.idx}</span><br><span style="font-size:9px;color:#888;">PC ${prod.pc}</span></td>`;
       } else {
         html += '<td class="dep-here">(uninit)</td>';
       }
@@ -384,7 +388,17 @@ function renderDeps(rec) {
     }
   }
 
-  if ((!rec.src || rec.src.length === 0) && (!rec.dst || rec.dst.length === 0)) {
+  // Memory access (if any)
+  if (rec.mem && rec.mem.addr) {
+    html += '<tr>';
+    html += `<td class="dep-mem">MEM</td><td class="dep-mem">${rec.mem.addr}</td>`;
+    html += `<td class="dep-val">+${rec.mem.size}B</td>`;
+    html += '<td class="dep-here">this instruction</td>';
+    html += '</tr>';
+  }
+
+  if ((!rec.src || rec.src.length === 0) && (!rec.dst || rec.dst.length === 0) &&
+      !(rec.mem && rec.mem.addr)) {
     html += '<tr><td colspan="4" style="color:#666;">No register operands</td></tr>';
   }
 
@@ -412,7 +426,7 @@ function renderSnapshot(rec) {
     regs.sort((a,b)=>(parseInt((a.n.match(/\[(\d+)/)||['','0'])[1])||0) - (parseInt((b.n.match(/\[(\d+)/)||['','0'])[1])||0));
     for (let x of regs) {
       let cls = chg.src.has(x.n) ? 'snap-src' : chg.dst.has(x.n) ? 'snap-dst' : '';
-      html += `<tr class="${cls}"><td>${x.n}</td><td style="font-size:10px;">${fmtVal(x.v, x.size)}</td></tr>`;
+      html += `<tr class="${cls}"><td>${x.n}</td><td style="font-size:10px;">${snapValHtml(x.v, x.size)}</td></tr>`;
     }
   }
   html += '</table></div>';
@@ -484,6 +498,28 @@ function fallbackCopy(text, done) {
   try { document.execCommand('copy'); } catch (e) {}
   document.body.removeChild(ta);
   done();
+}
+
+// Snapshot value cell: long registers show a truncated value with an
+// expand caret; clicking toggles an inline hexdump grid + copy button.
+function snapValHtml(v, size) {
+  const b = hexToBytes(v);
+  if (!b) return v;
+  if (b.length <= MAX_INLINE_BYTES) return `<span class="mono">${b.join(' ')}</span>`;
+  return `<span class="snap-toggle" data-val="${v}" data-size="${size}" data-expanded="0" onclick="toggleSnapVal(this)">${fmtVal(v, size)} <span class="snap-caret">&#9656;</span></span>`;
+}
+
+function toggleSnapVal(el) {
+  const size = parseInt(el.dataset.size) || 0;
+  if (el.dataset.expanded === '1') {
+    el.innerHTML = fmtVal(el.dataset.val, size) + ' <span class="snap-caret">&#9656;</span>';
+    el.dataset.expanded = '0';
+  } else {
+    const b = hexToBytes(el.dataset.val) || [];
+    el.innerHTML = `<div class="dep-val-box mono">${gridOf(b)}</div>` +
+                   `<button class="copy-btn" data-val="${el.dataset.val}" onclick="event.stopPropagation();copyVal(this)">copy</button>`;
+    el.dataset.expanded = '1';
+  }
 }
 
 // =================== Controls ===================

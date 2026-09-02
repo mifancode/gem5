@@ -1,0 +1,22 @@
+sequenceDiagram
+    autonumber
+    participant S as 仿真主循环 simulate
+    participant Q as 事件队列 EventQueue
+    participant T as 时钟 curTick
+    participant CPU as CPU 周期事件
+    participant MEM as 内存控制器 延迟事件
+
+    Note over S,T: 事件驱动：不是逐 cycle 慢走，而是「跳到下一个事件时刻」
+    Loop 队列非空
+        S->>Q: 取最早事件 e (time=t)
+        Q-->>S: 返回事件 e
+        S->>T: curTick = t  时间推进到 t
+        S->>CPU: e.process() 执行该事件
+        activate CPU
+        CPU->>MEM: 访问内存（延迟 10 cycle）
+        MEM->>Q: 调度响应事件 @ t+10
+        CPU->>Q: 调度下一周期事件 @ t+1
+        deactivate CPU
+        Note right of Q: 新事件按时间戳插入，队列始终有序
+    end
+    Note over S,T: 队列空 或 遇退出事件(m5_exit) 时结束，dump 统计

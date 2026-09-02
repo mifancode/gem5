@@ -1,0 +1,107 @@
+<mxfile host="app.diagrams.net" agent="gem5-talk" version="24.0.0">
+  <diagram id="gem5-arch" name="gem5-architecture">
+    <mxGraphModel dx="1240" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1300" pageHeight="800" math="0" shadow="0" adaptiveColors="auto">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="gem5 工作原理 —— 模块化组件 + 事件驱动仿真" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="0" y="0" width="1240" height="36" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lane1" value="① 配置层（Python 脚本）" style="swimlane;startSize=28;fillColor=#fff9e6;strokeColor=#d6b656;html=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="0" y="40" width="1240" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="cfg" value="configs/*.py&#xa;用户 Python 配置脚本" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="lane1">
+          <mxGeometry x="60" y="45" width="250" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="tree" value="实例化 SimObject 树&#xa;System → CPU → Cache → MemCtrl" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="lane1">
+          <mxGeometry x="540" y="45" width="340" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lane2" value="② 仿真内核（C++，事件驱动）" style="swimlane;startSize=28;fillColor=#e8f4f8;strokeColor=#6c8ebf;html=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="0" y="190" width="1240" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="evq" value="事件驱动引擎 EventQueue&#xa;每个 tick 取最早事件执行" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="lane2">
+          <mxGeometry x="330" y="45" width="380" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="clk" value="CurTick / ClockDomain&#xa;时序推进（cycle-accurate）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="lane2">
+          <mxGeometry x="780" y="45" width="220" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lane3" value="③ 组件层（SimObject，可替换模块）" style="swimlane;startSize=28;fillColor=#f5f5f5;strokeColor=#666666;html=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="0" y="340" width="1240" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="cpu" value="CPU 模型&#xa;Atomic · Timing · Minor · O3 · KVM&#xa;（微架构可替换）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="lane3">
+          <mxGeometry x="40" y="50" width="200" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="cache" value="缓存层次&#xa;L1 I$/D$ → L2&#xa;（大小/替换策略可配）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="lane3">
+          <mxGeometry x="300" y="50" width="210" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="xbar" value="互连 XBar&#xa;（总线/交换）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="lane3">
+          <mxGeometry x="570" y="50" width="150" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="memctrl" value="内存控制器&#xa;MemCtrl → DRAMInterface&#xa;（时序/带宽/刷新）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="lane3">
+          <mxGeometry x="780" y="50" width="210" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev" value="设备 Dev&#xa;磁盘 / 网卡 / PCI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="lane3">
+          <mxGeometry x="1050" y="50" width="150" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="isa" value="ISA 解码：x86 / ARM / RISC-V / MIPS / …" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="lane3">
+          <mxGeometry x="40" y="190" width="200" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="portnote" value="模块间通过 Port 相连，通信单位为 Packet / Request —— 精度与速度可权衡（Atomic 快而近似 ↔ O3 精确而慢）" style="text;html=1;align=left;verticalAlign=middle;fillColor=none;strokeColor=none;fontColor=#333333;" vertex="1" parent="lane3">
+          <mxGeometry x="300" y="185" width="520" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="lane4" value="④ 输出（可观测性）" style="swimlane;startSize=28;fillColor=#e8f5e9;strokeColor=#82b366;html=1;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="0" y="620" width="1240" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="stats" value="m5out/stats.txt&#xa;性能统计（IPC / 带宽 / miss）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="lane4">
+          <mxGeometry x="130" y="45" width="240" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="config" value="m5out/config.ini&#xa;实例化后的参数树" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="lane4">
+          <mxGeometry x="450" y="45" width="240" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="trace" value="指令 / 寄存器 trace&#xa;（RegWritingRecord）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="lane4">
+          <mxGeometry x="770" y="45" width="280" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" value="实例化" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="cfg" target="tree" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="交给内核" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="tree" target="evq" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="逐 tick 驱动" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="evq" target="cpu" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="Port / Packet" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="cpu" target="cache" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="cache" target="xbar" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="xbar" target="memctrl" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" source="xbar" target="dev" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" value="解码" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;" edge="1" source="isa" target="cpu" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" value="dump 统计" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;" edge="1" source="memctrl" target="stats" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" value="指令/寄存器追踪" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;" edge="1" source="cpu" target="trace" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e11" value="时钟域" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;" edge="1" source="evq" target="clk" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
